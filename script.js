@@ -20,6 +20,63 @@ let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
 let selectedSlot = null;
 let selectedDate = null;
 
+// Utility function to generate unique IDs
+function generateUniqueId() {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Notification system
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Confirm dialog
+function showConfirm(message) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement('div');
+        dialog.className = 'confirm-dialog';
+        
+        const content = document.createElement('div');
+        content.className = 'confirm-content';
+        
+        const text = document.createElement('p');
+        text.textContent = message;
+        
+        const buttons = document.createElement('div');
+        buttons.className = 'confirm-buttons';
+        
+        const confirmBtn = document.createElement('button');
+        confirmBtn.id = 'submit-btn';
+        confirmBtn.textContent = 'Confirm';
+        confirmBtn.onclick = () => {
+            dialog.remove();
+            resolve(true);
+        };
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'cancel-btn';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+            dialog.remove();
+            resolve(false);
+        };
+        
+        buttons.appendChild(confirmBtn);
+        buttons.appendChild(cancelBtn);
+        content.appendChild(text);
+        content.appendChild(buttons);
+        dialog.appendChild(content);
+        document.body.appendChild(dialog);
+    });
+}
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeDatePicker();
@@ -142,11 +199,11 @@ function hideBookingForm() {
 }
 
 // Handle booking submission
-function handleBookingSubmit(e) {
+async function handleBookingSubmit(e) {
     e.preventDefault();
     
     if (!selectedSlot || !selectedDate) {
-        alert('Please select a time slot');
+        showNotification('Please select a time slot', 'error');
         return;
     }
     
@@ -155,7 +212,7 @@ function handleBookingSubmit(e) {
     
     // Double-check availability
     if (bookedCount >= MAX_CUSTOMERS_PER_SLOT) {
-        alert('This slot is now full. Please select another time.');
+        showNotification('This slot is now full. Please select another time.', 'error');
         hideBookingForm();
         generateTimeSlots(selectedDate);
         return;
@@ -168,7 +225,7 @@ function handleBookingSubmit(e) {
     
     // Create booking object
     const booking = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         date: selectedDate,
         time: selectedSlot,
         name: name,
@@ -186,7 +243,7 @@ function handleBookingSubmit(e) {
     localStorage.setItem('bookings', JSON.stringify(bookings));
     
     // Show success message
-    alert(`Appointment booked successfully!\nDate: ${selectedDate}\nTime: ${selectedSlot}\nName: ${name}`);
+    showNotification(`Appointment booked successfully! ${selectedDate} at ${selectedSlot}`, 'success');
     
     // Reset form and update UI
     hideBookingForm();
@@ -223,25 +280,54 @@ function displayBookings() {
     allBookings.forEach(booking => {
         const bookingElement = document.createElement('div');
         bookingElement.className = 'booking-item';
-        bookingElement.innerHTML = `
-            <div class="booking-info">
-                <p><strong>Date:</strong> ${booking.date}</p>
-                <p><strong>Time:</strong> ${booking.time}</p>
-                <p><strong>Name:</strong> ${booking.name}</p>
-                <p><strong>Email:</strong> ${booking.email}</p>
-                <p><strong>Phone:</strong> ${booking.phone}</p>
-            </div>
-            <button class="cancel-booking" onclick="cancelBooking('${booking.id}', '${booking.date}', '${booking.time}')">
-                Cancel
-            </button>
-        `;
+        
+        const bookingInfo = document.createElement('div');
+        bookingInfo.className = 'booking-info';
+        
+        const dateP = document.createElement('p');
+        dateP.innerHTML = '<strong>Date:</strong> ';
+        dateP.appendChild(document.createTextNode(booking.date));
+        
+        const timeP = document.createElement('p');
+        timeP.innerHTML = '<strong>Time:</strong> ';
+        timeP.appendChild(document.createTextNode(booking.time));
+        
+        const nameP = document.createElement('p');
+        nameP.innerHTML = '<strong>Name:</strong> ';
+        nameP.appendChild(document.createTextNode(booking.name));
+        
+        const emailP = document.createElement('p');
+        emailP.innerHTML = '<strong>Email:</strong> ';
+        emailP.appendChild(document.createTextNode(booking.email));
+        
+        const phoneP = document.createElement('p');
+        phoneP.innerHTML = '<strong>Phone:</strong> ';
+        phoneP.appendChild(document.createTextNode(booking.phone));
+        
+        bookingInfo.appendChild(dateP);
+        bookingInfo.appendChild(timeP);
+        bookingInfo.appendChild(nameP);
+        bookingInfo.appendChild(emailP);
+        bookingInfo.appendChild(phoneP);
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'cancel-booking';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', () => {
+            cancelBooking(booking.id, booking.date, booking.time);
+        });
+        
+        bookingElement.appendChild(bookingInfo);
+        bookingElement.appendChild(cancelBtn);
         container.appendChild(bookingElement);
     });
 }
 
 // Cancel a booking
-function cancelBooking(bookingId, date, time) {
-    if (!confirm('Are you sure you want to cancel this booking?')) {
+async function cancelBooking(bookingId, date, time) {
+    const confirmed = await showConfirm('Are you sure you want to cancel this booking?');
+    
+    if (!confirmed) {
         return;
     }
     
@@ -263,6 +349,6 @@ function cancelBooking(bookingId, date, time) {
         generateTimeSlots(selectedDate);
         displayBookings();
         
-        alert('Booking cancelled successfully!');
+        showNotification('Booking cancelled successfully!', 'success');
     }
 }

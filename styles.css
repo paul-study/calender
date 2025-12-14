@@ -283,6 +283,83 @@ button {
     font-style: italic;
 }
 
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #FFD700;
+    color: #ffffff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+    max-width: 400px;
+}
+
+.notification.success {
+    background: #FFD700;
+}
+
+.notification.error {
+    background: #ff6b6b;
+}
+
+.notification.confirm {
+    background: #DAA520;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.confirm-content {
+    background: #ffffff;
+    border: 3px solid #FFD700;
+    border-radius: 10px;
+    padding: 30px;
+    max-width: 400px;
+    text-align: center;
+}
+
+.confirm-content p {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 1.1em;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.confirm-buttons button {
+    padding: 12px 30px;
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     .time-slots {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -299,5 +376,12 @@ button {
     
     .cancel-booking {
         margin-top: 10px;
+    }
+    
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
     }
 }
