@@ -2,23 +2,49 @@
 
 const MAX_CUSTOMERS_PER_SLOT = 4;
 
-// Generate time slots for the day (9 AM to 5 PM, hourly slots)
+// Generate time slots for the day (11 AM to 2 PM, 15-minute slots)
 const TIME_SLOTS = [
-    '09:00 AM',
-    '10:00 AM',
     '11:00 AM',
+    '11:15 AM',
+    '11:30 AM',
+    '11:45 AM',
     '12:00 PM',
+    '12:15 PM',
+    '12:30 PM',
+    '12:45 PM',
     '01:00 PM',
-    '02:00 PM',
-    '03:00 PM',
-    '04:00 PM',
-    '05:00 PM'
+    '01:15 PM',
+    '01:30 PM',
+    '01:45 PM',
+    '02:00 PM'
 ];
 
-// Storage for bookings (using localStorage)
-let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+// Storage for bookings (using Firebase)
+let bookings = {};
 let selectedSlot = null;
 let selectedDate = null;
+
+// Load bookings from Firebase
+async function loadBookingsFromFirebase() {
+    try {
+        const snapshot = await db.collection('bookings').get();
+        bookings = {};
+        snapshot.forEach(doc => {
+            const booking = doc.data();
+            booking.id = doc.id;
+            const slotKey = `${booking.date}_${booking.time}`;
+            if (!bookings[slotKey]) {
+                bookings[slotKey] = [];
+            }
+            bookings[slotKey].push(booking);
+        });
+        return bookings;
+    } catch (error) {
+        console.error('Error loading bookings:', error);
+        showNotification('Error loading bookings', 'error');
+        return {};
+    }
+}
 
 // Utility function to generate unique IDs
 function generateUniqueId() {
@@ -78,7 +104,8 @@ function showConfirm(message) {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadBookingsFromFirebase();
     initializeDatePicker();
     setupEventListeners();
     displayBookings();
@@ -225,25 +252,32 @@ async function handleBookingSubmit(e) {
     
     // Create booking object
     const booking = {
-        id: generateUniqueId(),
         date: selectedDate,
         time: selectedSlot,
         name: name,
         email: email,
-        phone: phone
+        phone: phone,
+        createdAt: new Date().toISOString()
     };
     
-    // Add booking to storage
-    if (!bookings[slotKey]) {
-        bookings[slotKey] = [];
+    try {
+        // Save to Firebase
+        const docRef = await db.collection('bookings').add(booking);
+        booking.id = docRef.id;
+        
+        // Add booking to local cache
+        if (!bookings[slotKey]) {
+            bookings[slotKey] = [];
+        }
+        bookings[slotKey].push(booking);
+        
+        // Show success message
+        showNotification(`Appointment booked successfully! ${selectedDate} at ${selectedSlot}`, 'success');
+    } catch (error) {
+        console.error('Error saving booking:', error);
+        showNotification('Error saving booking. Please try again.', 'error');
+        return;
     }
-    bookings[slotKey].push(booking);
-    
-    // Save to localStorage
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-    
-    // Show success message
-    showNotification(`Appointment booked successfully! ${selectedDate} at ${selectedSlot}`, 'success');
     
     // Reset form and update UI
     hideBookingForm();
@@ -333,22 +367,27 @@ async function cancelBooking(bookingId, date, time) {
     
     const slotKey = `${date}_${time}`;
     
-    if (bookings[slotKey]) {
-        // Remove the booking
-        bookings[slotKey] = bookings[slotKey].filter(b => b.id !== bookingId);
+    try {
+        // Delete from Firebase
+        await db.collection('bookings').doc(bookingId).delete();
         
-        // Clean up empty slots
-        if (bookings[slotKey].length === 0) {
-            delete bookings[slotKey];
+        if (bookings[slotKey]) {
+            // Remove the booking from local cache
+            bookings[slotKey] = bookings[slotKey].filter(b => b.id !== bookingId);
+            
+            // Clean up empty slots
+            if (bookings[slotKey].length === 0) {
+                delete bookings[slotKey];
+            }
         }
-        
-        // Save to localStorage
-        localStorage.setItem('bookings', JSON.stringify(bookings));
         
         // Update UI
         generateTimeSlots(selectedDate);
         displayBookings();
         
         showNotification('Booking cancelled successfully!', 'success');
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        showNotification('Error cancelling booking. Please try again.', 'error');
     }
 }
